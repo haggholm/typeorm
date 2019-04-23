@@ -63,7 +63,6 @@ export class MigrationExecutor {
         if (this.transaction && !queryRunner.isTransactionActive) {
             await queryRunner.startTransaction();
             transactionStartedByUs = true;
-            await queryRunner.query(`LOCK ${this.migrationsTable} IN ACCESS EXCLUSIVE MODE`);
         }
 
         await this.lockMigrationsTable(queryRunner);
@@ -261,7 +260,7 @@ export class MigrationExecutor {
     }
 
     protected async lockMigrationsTable(queryRunner: QueryRunner) {
-        return queryRunner.query(`LOCK TABLE ${this.migrationsTable} ACCESS EXCLUSIVE`);
+        return queryRunner.query(`LOCK ${this.migrationsTable} IN ACCESS EXCLUSIVE MODE`);
     }
 
     /**
