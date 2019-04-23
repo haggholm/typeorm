@@ -57,6 +57,17 @@ export class MigrationExecutor {
         const queryRunner = this.queryRunner || this.connection.createQueryRunner("master");
         // create migrations table if its not created yet
         await this.createMigrationsTableIfNotExist(queryRunner);
+
+        // start transaction if its not started yet
+        let transactionStartedByUs = false;
+        if (this.transaction && !queryRunner.isTransactionActive) {
+            await queryRunner.startTransaction();
+            transactionStartedByUs = true;
+            await queryRunner.query(`LOCK ${this.migrationsTable} IN ACCESS EXCLUSIVE MODE`);
+        }
+
+        await this.lockMigrationsTable(queryRunner);
+
         // get all migrations that are executed and saved in the database
         const executedMigrations = await this.loadExecutedMigrations(queryRunner);
 
@@ -99,13 +110,6 @@ export class MigrationExecutor {
         if (lastTimeExecutedMigration)
             this.connection.logger.logSchemaBuild(`${lastTimeExecutedMigration.name} is the last executed migration. It was executed on ${new Date(lastTimeExecutedMigration.timestamp).toString()}.`);
         this.connection.logger.logSchemaBuild(`${pendingMigrations.length} migrations are new migrations that needs to be executed.`);
-
-        // start transaction if its not started yet
-        let transactionStartedByUs = false;
-        if (this.transaction && !queryRunner.isTransactionActive) {
-            await queryRunner.startTransaction();
-            transactionStartedByUs = true;
-        }
 
         // run all pending migrations in a sequence
         try {
@@ -256,6 +260,10 @@ export class MigrationExecutor {
         }
     }
 
+    protected async lockMigrationsTable(queryRunner: QueryRunner) {
+        return queryRunner.query(`LOCK TABLE ${this.migrationsTable} ACCESS EXCLUSIVE`);
+    }
+
     /**
      * Loads all migrations that were executed and saved into the database.
      */
@@ -320,9 +328,9 @@ export class MigrationExecutor {
             values["timestamp"] = migration.timestamp;
             values["name"] = migration.name;
         }
-        if (this.connection.driver instanceof MongoDriver) {  
+        if (this.connection.driver instanceof MongoDriver) {
             const mongoRunner = queryRunner as MongoQueryRunner;
-            mongoRunner.databaseConnection.db(this.connection.driver.database!).collection(this.migrationsTableName).insert(values);               
+            mongoRunner.databaseConnection.db(this.connection.driver.database!).collection(this.migrationsTableName).insert(values);
         } else {
             const qb = queryRunner.manager.createQueryBuilder();
             await qb.insert()
@@ -348,7 +356,7 @@ export class MigrationExecutor {
 
         if (this.connection.driver instanceof MongoDriver) {
             const mongoRunner = queryRunner as MongoQueryRunner;
-            mongoRunner.databaseConnection.db(this.connection.driver.database!).collection(this.migrationsTableName).deleteOne(conditions);               
+            mongoRunner.databaseConnection.db(this.connection.driver.database!).collection(this.migrationsTableName).deleteOne(conditions);
         } else {
             const qb = queryRunner.manager.createQueryBuilder();
             await qb.delete()
