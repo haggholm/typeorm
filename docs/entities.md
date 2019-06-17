@@ -504,7 +504,8 @@ You can change it by specifying your own name.
 * `width: number` - column type's display width. Used only for [MySQL integer types](https://dev.mysql.com/doc/refman/5.7/en/integer-types.html)
 * `onUpdate: string` - `ON UPDATE` trigger. Used only in [MySQL](https://dev.mysql.com/doc/refman/5.7/en/timestamp-initialization.html).
 * `nullable: boolean` - Makes column `NULL` or `NOT NULL` in the database. By default column is `nullable: false`.
-* `readonly: boolean` - Indicates if column value is not updated by "save" operation. It means you'll be able to write this value only when you first time insert the object. Default value is `false`.
+* `update: boolean` - Indicates if column value is updated by "save" operation. If false, you'll be able to write this value only when you first time insert the object. Default value is `true`.
+* `insert: boolean` - Indicates if column value is set the first time you insert the object.  Default value is `true`.
 * `select: boolean` - Defines whether or not to hide this column by default when making queries. When set to `false`, the column data will not show with a standard query. By default column is `select: true`
 * `default: string` - Adds database-level column's `DEFAULT` value.
 * `primary: boolean` - Marks column as primary. Same if you use `@PrimaryColumn`.
@@ -522,7 +523,7 @@ You can change it by specifying your own name.
 * `generatedType: "VIRTUAL"|"STORED"` - Generated column type. Used only in [MySQL](https://dev.mysql.com/doc/refman/5.7/en/create-table-generated-columns.html).
 * `hstoreType: "object"|"string"` - Return type of `HSTORE` column. Returns value as string or as object. Used only in [Postgres](https://www.postgresql.org/docs/9.6/static/hstore.html).
 * `array: boolean` - Used for postgres and cockroachdb column types which can be array (for example int[])
-* `transformer: { from(value: DatabaseType): EntityType, to(value: EntityType): DatabaseType }` - Used to marshal properties of arbitrary type `EntityType` into a type `DatabaseType` supported by the database.
+* `transformer: { from(value: DatabaseType): EntityType, to(value: EntityType): DatabaseType }` - Used to marshal properties of arbitrary type `EntityType` into a type `DatabaseType` supported by the database. Array of transformers are also supported and will be applied in natural order when writing, and in reverse order when reading. e.g. `[lowercase, encrypt]` will first lowercase the string then encrypt it when writing, and will decrypt then do nothing when reading.
 
 Note: most of those column options are RDBMS-specific and aren't available in `MongoDB`.
 

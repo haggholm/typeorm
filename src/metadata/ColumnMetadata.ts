@@ -10,6 +10,7 @@ import {ValueTransformer} from "../decorator/options/ValueTransformer";
 import {MongoDriver} from "../driver/mongodb/MongoDriver";
 import {PromiseUtils} from "../util/PromiseUtils";
 import {FindOperator} from "../find-options/FindOperator";
+import {ApplyValueTransformers} from "../util/ApplyValueTransformers";
 
 /**
  * This metadata contains all information about entity's column.
@@ -96,9 +97,14 @@ export class ColumnMetadata {
     isSelect: boolean = true;
 
     /**
-     * Indicates if column is protected from updates or not.
+     * Indicates if column is inserted by default or not.
      */
-    isReadonly: boolean = false;
+    isInsert: boolean = true;
+
+    /**
+     * Indicates if column allows updates or not.
+     */
+    isUpdate: boolean = true;
 
     /**
      * Specifies generation strategy if this column will use auto increment.
@@ -255,7 +261,7 @@ export class ColumnMetadata {
      * Specifies a value transformer that is to be used to (un)marshal
      * this column when reading or writing to the database.
      */
-    transformer?: ValueTransformer;
+    transformer?: ValueTransformer|ValueTransformer[];
 
     /**
      * Column type in the case if this column is in the closure table.
@@ -333,8 +339,12 @@ export class ColumnMetadata {
             this.isNullable = options.args.options.nullable;
         if (options.args.options.select !== undefined)
             this.isSelect = options.args.options.select;
+        if (options.args.options.insert !== undefined)
+            this.isInsert = options.args.options.insert;
+        if (options.args.options.update !== undefined)
+            this.isUpdate = options.args.options.update;
         if (options.args.options.readonly !== undefined)
-            this.isReadonly = options.args.options.readonly;
+            this.isUpdate = !options.args.options.readonly;
         if (options.args.options.comment)
             this.comment = options.args.options.comment;
         if (options.args.options.default !== undefined)
@@ -534,7 +544,7 @@ export class ColumnMetadata {
      * Extracts column value from the given entity.
      * If column is in embedded (or recursive embedded) it extracts its value from there.
      */
-     getEntityValue(entity: ObjectLiteral, transform: boolean = false): any|undefined {
+    getEntityValue(entity: ObjectLiteral, transform: boolean = false): any|undefined {
         if (entity === undefined || entity === null) return undefined;
 
         // extract column value from embeddeds of entity if column is in embedded
@@ -600,7 +610,7 @@ export class ColumnMetadata {
         }
 
         if (transform && this.transformer)
-            value = this.transformer.to(value);
+            value = ApplyValueTransformers.transformTo(this.transformer, value);
 
         return value;
     }
