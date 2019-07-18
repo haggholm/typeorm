@@ -155,7 +155,11 @@ export class MigrationExecutor {
                         successMigrations.push(migration);
                         this.connection.logger.logSchemaBuild(`Migration ${migration.name} has been executed successfully.`);
                     })
-                    .then(() => setImmediate(() => this.executePendingMigrations()));
+                    .then(() => {
+                        if (pendingMigrations.length > 1) {
+                            setImmediate(() => this.executePendingMigrations());
+                        }
+                    });
             });
 
             // commit transaction if we started it
