@@ -146,7 +146,7 @@ export class MigrationExecutor {
 
         // run all pending migrations in a sequence
         try {
-            await PromiseUtils.runInSequence(pendingMigrations, migration => {
+            await PromiseUtils.runInSequence([pendingMigrations[0]], migration => {
                 return migration.instance!.up(queryRunner)
                     .then(() => { // now when migration is executed we need to insert record about it into the database
                         return this.insertExecutedMigration(queryRunner, migration);
@@ -154,7 +154,8 @@ export class MigrationExecutor {
                     .then(() => { // informative log about migration success
                         successMigrations.push(migration);
                         this.connection.logger.logSchemaBuild(`Migration ${migration.name} has been executed successfully.`);
-                    });
+                    })
+                    .then(() => setImmediate(() => this.executePendingMigrations()));
             });
 
             // commit transaction if we started it
