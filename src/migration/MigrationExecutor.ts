@@ -38,7 +38,6 @@ export class MigrationExecutor {
 
     constructor(protected connection: Connection,
                 protected queryRunner?: QueryRunner) {
-
         const options = <SqlServerConnectionOptions|PostgresConnectionOptions>this.connection.driver.options;
         this.migrationsTableName = connection.options.migrationsTableName || "migrations";
         this.migrationsTable = this.connection.driver.buildTableName(this.migrationsTableName, options.schema, options.database);
@@ -154,17 +153,28 @@ export class MigrationExecutor {
                     .then(() => { // informative log about migration success
                         successMigrations.push(migration);
                         this.connection.logger.logSchemaBuild(`Migration ${migration.name} has been executed successfully.`);
-                    })
-                    .then(() => {
-                        if (pendingMigrations.length > 1) {
-                            setImmediate(() => this.executePendingMigrations());
-                        }
                     });
             });
 
             // commit transaction if we started it
             if (transactionStartedByUs)
                 await queryRunner.commitTransaction();
+            if (pendingMigrations.length > 1) {
+                const old = this.queryRunner;
+                this.queryRunner = queryRunner;
+                return new Promise((resolve, reject) =>
+                    setImmediate(() => this.executePendingMigrations().then(
+                        (res) => {
+                            this.queryRunner = old;
+                            resolve(res);
+                        },
+                        (err) => {
+                            this.queryRunner = old;
+                            reject(err);
+                        })
+                    )
+                );
+            }
 
         } catch (err) { // rollback transaction if we started it
             if (transactionStartedByUs) {
