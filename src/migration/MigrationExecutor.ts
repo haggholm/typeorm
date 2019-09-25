@@ -162,7 +162,7 @@ export class MigrationExecutor {
             if (pendingMigrations.length > 1) {
                 const old = this.queryRunner;
                 this.queryRunner = queryRunner;
-                return new Promise((resolve, reject) =>
+                return await new Promise((resolve, reject) =>
                     setImmediate(() => this.executePendingMigrations().then(
                         (res) => {
                             this.queryRunner = old;
