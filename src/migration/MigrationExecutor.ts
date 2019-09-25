@@ -2,7 +2,6 @@ import {Table} from "../schema-builder/table/Table";
 import {Connection} from "../connection/Connection";
 import {Migration} from "./Migration";
 import {ObjectLiteral} from "../common/ObjectLiteral";
-import {PromiseUtils} from "../util/PromiseUtils";
 import {QueryRunner} from "../query-runner/QueryRunner";
 import {SqlServerDriver} from "../driver/sqlserver/SqlServerDriver";
 import {MssqlParameter} from "../driver/sqlserver/MssqlParameter";
@@ -145,33 +144,23 @@ export class MigrationExecutor {
 
         // run all pending migrations in a sequence
         try {
-            await PromiseUtils.runInSequence([pendingMigrations[0]], migration => {
-                return migration.instance!.up(queryRunner)
-                    .then(() => { // now when migration is executed we need to insert record about it into the database
-                        return this.insertExecutedMigration(queryRunner, migration);
-                    })
-                    .then(() => { // informative log about migration success
-                        successMigrations.push(migration);
-                        this.connection.logger.logSchemaBuild(`Migration ${migration.name} has been executed successfully.`);
-                    });
-            });
+            await pendingMigrations[0].instance!.up(queryRunner)
+                .then(() => { // now when migration is executed we need to insert record about it into the database
+                    return this.insertExecutedMigration(queryRunner, pendingMigrations[0]);
+                })
+                .then(() => { // informative log about migration success
+                    successMigrations.push(pendingMigrations[0]);
+                    this.connection.logger.logSchemaBuild(`Migration ${pendingMigrations[0].name} has been executed successfully.`);
+                });
 
             // commit transaction if we started it
             if (transactionStartedByUs)
                 await queryRunner.commitTransaction();
             if (pendingMigrations.length > 1) {
-                const old = this.queryRunner;
-                this.queryRunner = queryRunner;
-                return await new Promise((resolve, reject) =>
-                    setImmediate(() => this.executePendingMigrations().then(
-                        (res) => {
-                            this.queryRunner = old;
-                            resolve(res);
-                        },
-                        (err) => {
-                            this.queryRunner = old;
-                            reject(err);
-                        })
+                return new Promise((resolve, reject) =>
+                    setTimeout(
+                        () => this.executePendingMigrations().then(resolve, reject),
+                        10
                     )
                 );
             }
