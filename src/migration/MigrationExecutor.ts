@@ -97,7 +97,7 @@ export class MigrationExecutor {
             transactionStartedByUs = true;
         }
 
-        await this.lockMigrationsTable(queryRunner);
+        // await this.lockMigrationsTable(queryRunner);
 
         // get all migrations that are executed and saved in the database
         const executedMigrations = await this.loadExecutedMigrations(queryRunner);
